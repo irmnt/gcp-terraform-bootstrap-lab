@@ -1,68 +1,73 @@
 # Initial Bootstrap Runbook
 
-この文書は、個人GCPプロジェクトへTerraformとCloud Buildを初めて導入する際の
-作業順序、実行主体、確認結果を記録するためのものです。
+This document records the procedure, execution identities, and evidence for
+introducing Terraform and Cloud Build to a personal GCP project for the first
+time.
 
-このディレクトリ自体はTerraform rootではありません。一回限りの準備、import、
-plan、applyを、通常運用のCloud Build設定と分けて記録します。
+This directory is not a Terraform root. It separates one-time preparation,
+imports, plans, and applies from the Cloud Build configuration used for normal
+operations.
 
-## 前提と対象外
+## Assumptions and Exclusions
 
-前提は次のとおりです。
+The following prerequisites apply:
 
-- 個人GCPプロジェクトが1つ作成済みである
-- プロジェクトに請求先アカウントが設定されている
-- 個人GitHubアカウントにprivate repositoryが作成済みである
-- 開発者PCで`gcloud`、Terraform、Gitを実行できる
-- GCPとGitHubの操作には個人アカウントだけを使用する
+- One personal GCP project already exists
+- A billing account is attached to the project
+- A private repository exists under the personal GitHub account
+- `gcloud`, Terraform, and Git are available on the developer workstation
+- Only personal accounts are used for GCP and GitHub operations
 
-次のものは、このラボへコピーしません。
+Do not copy the following into this lab:
 
-- 組織のプロジェクトID、サービスアカウント、バケット名
-- 組織のIAM、Organization Policy、認証情報
-- 組織固有のCloud Build設定やSecret Managerの値
+- Organization project IDs, service accounts, or bucket names
+- Organization IAM, Organization Policy, or credentials
+- Organization-specific Cloud Build configuration or Secret Manager values
 
-## Bootstrap値
+## Bootstrap Values
 
-実行前に値を確定します。秘密情報はこの表やGitへ記録しません。
+Confirm these values before execution. Do not record secrets in this table or
+commit them to Git.
 
-| 項目 | 値 | 確認方法 |
+| Item | Value | Verification method |
 | --- | --- | --- |
-| GCP project ID | 未設定 | GCP Console / `gcloud config get-value project` |
-| GCP project number | 未設定 | GCP Console / `gcloud projects describe` |
-| Region | 未設定 | TerraformおよびCloud Buildの設定 |
+| GCP project ID | Not set | GCP Console / `gcloud config get-value project` |
+| GCP project number | Not set | GCP Console / `gcloud projects describe` |
+| Region | Not set | Terraform and Cloud Build configuration |
 | GitHub repository | `irmnt/gcp-terraform-bootstrap-lab` | GitHub |
-| Cloud Build connection name | 未設定 | Cloud Build repositories |
-| Linked repository name | 未設定 | Cloud Build repositories |
-| Terraform service account | 未設定 | IAM |
-| tfstate bucket | 未設定 | Cloud Storage |
-| Cloud Build logs bucket | 未設定 | Cloud Storage |
-| Target commit SHA | 未設定 | `git rev-parse HEAD` |
+| Cloud Build connection name | Not set | Cloud Build repositories |
+| Linked repository name | Not set | Cloud Build repositories |
+| Terraform service account | Not set | IAM |
+| Terraform state bucket | Not set | Cloud Storage |
+| Cloud Build log bucket | Not set | Cloud Storage |
+| Target commit SHA | Not set | `git rev-parse HEAD` |
 
-## 管理境界
+## Management Boundary
 
-初回Bootstrapで手動作成するものと、最終的にTerraformが管理するものを分けます。
+Keep resources that must be created manually during the initial bootstrap
+separate from resources ultimately managed by Terraform.
 
-| 対象 | 初回の作成方法 | Bootstrap後の扱い |
+| Resource | Initial creation method | Post-bootstrap management |
 | --- | --- | --- |
-| GCP project / billing | GCP Console | Terraform管理外 |
-| 必須API | Consoleまたは`gcloud` | `env/lab/api`へimport |
-| tfstate bucket | Consoleまたは`gcloud` | `env/lab/cloudstorage`へimport |
-| Cloud Build logs bucket | Consoleまたは`gcloud` | `env/lab/cloudstorage`へimport |
-| GitHub host connection | Cloud BuildとGitHubの認可画面 | Terraform管理外 |
-| Linked repository | Cloud Build repositories | `env/lab/cloudbuild`へimport |
-| Build service account / IAM | 初回は開発者アカウントでapply | `env/lab/cloudbuild`で管理 |
-| Plan / apply trigger | Terraform apply | `env/lab/cloudbuild`で管理 |
+| GCP project and billing | GCP Console | Outside Terraform |
+| Required APIs | GCP Console or `gcloud` | Import into `env/lab/api` |
+| Terraform state bucket | GCP Console or `gcloud` | Import into `env/lab/cloudstorage` |
+| Cloud Build log bucket | GCP Console or `gcloud` | Import into `env/lab/cloudstorage` |
+| GitHub host connection | Cloud Build and GitHub authorization screens | Outside Terraform |
+| Linked repository | Cloud Build repositories | Import into `env/lab/cloudbuild` |
+| Build service account and IAM | Apply initially as the developer account | Manage in `env/lab/cloudbuild` |
+| Plan and apply triggers | Terraform apply | Manage in `env/lab/cloudbuild` |
 
-GitHub host connectionにはブラウザ上のGitHub App認可が含まれるため、このラボでは
-手動のBootstrap prerequisiteとして扱います。リンク済みrepositoryは、import後に
-Terraform管理へ移します。
+The GitHub host connection includes browser-based GitHub App authorization, so
+this lab treats it as a manual bootstrap prerequisite. Terraform takes over the
+linked repository after it is imported.
 
-## 実行手順
+## Procedure
 
-### 1. コードを準備する
+### 1. Prepare the Code
 
-Terraform rootとmoduleを作成し、remote stateへ接続する前に次の静的検証を行います。
+Create the Terraform roots and modules, then run the following static checks
+before connecting to remote state:
 
 ```text
 terraform fmt -check -diff
@@ -70,24 +75,27 @@ terraform init -backend=false
 terraform validate
 ```
 
-この段階では、共有stateに対するimport、plan、applyを行いません。
+Do not run imports, plans, or applies against shared state at this stage.
 
-### 2. 実行対象を固定する
+### 2. Pin the Execution Target
 
-レビュー済みコードを`main`へ反映し、開発者PCで対象commitをcheckoutします。
-実行直前に`git rev-parse HEAD`を確認し、そのSHAを「Bootstrap値」に記録します。
+Merge the reviewed code into `main` and check out the target commit on the
+developer workstation. Immediately before execution, verify the commit with
+`git rev-parse HEAD` and record the SHA under Bootstrap Values.
 
-### 3. Bootstrap prerequisiteを準備する
+### 3. Prepare Bootstrap Prerequisites
 
-必要なAPIを有効化し、tfstateバケットとCloud Buildログバケットを作成します。
-tfstateバケットではObject VersioningとUniform bucket-level accessを有効にします。
+Enable the required APIs and create the Terraform state and Cloud Build log
+buckets. Enable Object Versioning and uniform bucket-level access on the
+Terraform state bucket.
 
-次にCloud BuildのGitHub host connectionを作成し、このrepositoryをリンクします。
-connection、linked repository、triggerで同じregionを使用します。
+Next, create the Cloud Build GitHub host connection and link this repository.
+Use the same region for the connection, linked repository, and triggers.
 
-### 4. Remote backendを初期化する
+### 4. Initialize the Remote Backend
 
-各Terraform rootで同じtfstateバケットを使用し、異なるprefixを指定します。
+Use the same Terraform state bucket for each root, with a distinct prefix for
+each state:
 
 ```text
 terraform/lab/api
@@ -95,49 +103,53 @@ terraform/lab/cloudstorage
 terraform/lab/cloudbuild
 ```
 
-backend初期化後、`terraform state list`で既存stateがないことを確認してからimportへ
-進みます。既にstateへ登録されているresourceを再importしません。
+After initializing the backend, run `terraform state list` and confirm that the
+target resource is absent before importing it. Do not re-import a resource that
+is already registered in state.
 
-### 5. 既存リソースをimportする
+### 5. Import Existing Resources
 
-次の順序を維持します。
+Preserve the following order:
 
-1. `env/lab/api`へ手動有効化済みAPIをimportする
-2. `env/lab/cloudstorage`へtfstate／ログバケットをimportする
-3. 各rootでrefresh結果を含むplanを確認する
-4. `env/lab/cloudbuild`へリンク済みrepositoryをimportする
-5. Cloud Build rootのplanを確認してapplyする
+1. Import the manually enabled APIs into `env/lab/api`
+2. Import the Terraform state and log buckets into `env/lab/cloudstorage`
+3. Review a plan for each root, including the refresh results
+4. Import the linked repository into `env/lab/cloudbuild`
+5. Review the Cloud Build root plan and then apply it
 
-import IDとresource addressは、Terraform resource定義が確定した段階でこの文書へ
-追記します。推測したIDでは実行しません。
+Add import IDs and Terraform resource addresses to this runbook after the
+resource definitions are finalized. Do not execute imports using guessed IDs.
 
-### 6. Cloud Buildを検証する
+### 6. Verify Cloud Build
 
-Terraformで作成したtriggerについて、次を確認します。
+Verify the following behavior for the Terraform-managed triggers:
 
-- PRで`cloudbuild/plan.yaml`が起動する
-- `main`へのpushで`cloudbuild/apply.yaml`が起動する
-- buildが指定したTerraformサービスアカウントで実行される
-- API、Cloud Storage、Cloud Buildの順序が維持される
-- 最終的なplanまたはapplyの結果まで確認できる
+- A pull request starts `cloudbuild/plan.yaml`
+- A push to `main` starts `cloudbuild/apply.yaml`
+- The build runs as the configured Terraform service account
+- The API, Cloud Storage, and Cloud Build order is preserved
+- The terminal result of each Terraform plan or apply is confirmed
 
-HTTP成功やbuild起動だけを完了条件にせず、各Terraform処理の終了結果を確認します。
+A successful HTTP response or started build is not sufficient evidence. Confirm
+the final Terraform result for every component.
 
-## 停止条件
+## Stop Conditions
 
-次の場合は操作を止め、設定と実行対象を確認します。
+Stop and verify the configuration and execution target if any of the following
+conditions occur:
 
-- `gcloud`のactive projectが予定した個人プロジェクトと異なる
-- GitのHEADが記録したtarget commit SHAと異なる
-- GCPまたはGitHubに組織アカウントでログインしている
-- import対象が既にTerraform stateへ登録されている
-- planに意図しない削除、置換、IAM変更が表示される
-- Cloud Buildが想定外のサービスアカウントで実行される
+- The active `gcloud` project is not the intended personal project
+- Git `HEAD` does not match the recorded target commit SHA
+- GCP or GitHub is authenticated with an organization account
+- The import target is already registered in Terraform state
+- The plan contains an unexpected deletion, replacement, or IAM change
+- Cloud Build runs as an unexpected service account
 
-## 実行記録
+## Execution Log
 
-実行時に、宣言したTerraformと実際のGCP状態を分けて記録します。
+During execution, record declared Terraform configuration separately from the
+observed live GCP state.
 
-| 日時 | 実行場所 | 実行identity | 操作 | 結果・証跡 |
+| Date and time | Execution location | Execution identity | Operation | Result and evidence |
 | --- | --- | --- | --- | --- |
-| 未実行 | - | - | - | - |
+| Not run | - | - | - | - |

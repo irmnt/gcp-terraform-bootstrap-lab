@@ -1,26 +1,28 @@
 # GCP Terraform Bootstrap Lab
 
-個人のGCPプロジェクトとGitHubリポジトリだけを使用し、Terraformと
-Cloud Buildの初回Bootstrap手順を小さな構成で確認するためのラボです。
+This lab uses only a personal Google Cloud project and GitHub repository to
+rehearse the initial Terraform and Cloud Build bootstrap process with a small,
+focused configuration.
 
-このリポジトリには、勤務先やその他の組織で使用しているプロジェクトID、
-サービスアカウント、バケット名、認証情報、IAM設定を持ち込みません。
+Do not copy project IDs, service accounts, bucket names, credentials, IAM
+settings, or other configuration from an employer or any other organization
+into this repository.
 
-## 目的
+## Objectives
 
-- 既存のGCPプロジェクトへTerraform管理を導入する順序を確認する
-- GCS remote backendを使用し、Terraform rootごとにstateを分離する
-- Cloud BuildのGitHub接続、リンク済みrepository、triggerの境界を確認する
-- Bootstrap実行者と、その後のCloud Build実行サービスアカウントを区別する
-- 手動作成済みリソースをTerraformへimportする手順を記録する
+- Rehearse the order for introducing Terraform management to an existing GCP project
+- Use a GCS remote backend and keep each Terraform root in a separate state
+- Understand the boundaries between a Cloud Build GitHub connection, linked repository, and triggers
+- Distinguish the bootstrap operator from the service account used by subsequent Cloud Build executions
+- Document how manually created resources are imported into Terraform state
 
-## 対象範囲
+## Scope
 
-このラボでは、既に作成済みの個人GCPプロジェクトを1つ使用します。
-GCPプロジェクトの作成、請求先アカウントの設定、組織レベルのポリシーは
-Terraformの管理対象外です。
+This lab uses one existing personal GCP project. Creating the GCP project,
+configuring its billing account, and managing organization-level policies are
+outside the scope of Terraform in this repository.
 
-## 予定する構成
+## Planned Repository Structure
 
 ```text
 .
@@ -42,58 +44,61 @@ Terraformの管理対象外です。
 └── README.md
 ```
 
-各ディレクトリの責務は次のとおりです。
+The directories have the following responsibilities.
 
-| Terraform root | 主な管理対象 | state prefix（予定） |
+| Terraform root | Primary resources | Planned state prefix |
 | --- | --- | --- |
-| `env/lab/api` | ラボで使用するGoogle Cloud API | `terraform/lab/api` |
-| `env/lab/cloudstorage` | tfstateバケット、Cloud Buildログバケット | `terraform/lab/cloudstorage` |
-| `env/lab/cloudbuild` | Terraform実行用サービスアカウント、IAM、repository、trigger | `terraform/lab/cloudbuild` |
+| `env/lab/api` | Google Cloud APIs used by the lab | `terraform/lab/api` |
+| `env/lab/cloudstorage` | Terraform state and Cloud Build log buckets | `terraform/lab/cloudstorage` |
+| `env/lab/cloudbuild` | Terraform service account, IAM, repository, and triggers | `terraform/lab/cloudbuild` |
 
-`modules`には再利用するresource定義を置き、`env/lab`配下をTerraform CLIを
-実行するroot moduleとします。
+Reusable resource definitions belong under `modules`. The directories under
+`env/lab` are the root modules from which Terraform CLI commands are run.
 
-## Bootstrapの基本方針
+## Bootstrap Approach
 
-初回Bootstrapは、次の順序で進めます。
+The initial bootstrap follows this order:
 
-1. Terraformコードを作成し、remote backendへ接続しない静的検証を行う
-2. レビュー済みコードを`main`へ反映し、実行対象のcommit SHAを固定する
-3. 必要なAPIとtfstate／ログバケットを手動で準備する
-4. Cloud BuildのGitHub接続とrepository linkを手動で完了する
-5. API、Cloud Storage、Cloud Build repositoryを順番にTerraform stateへimportする
-6. 各rootでplanを確認してからapplyする
-7. PR用plan triggerと`main`用apply triggerを検証する
+1. Create the Terraform configuration and run static checks without connecting to the remote backend
+2. Merge the reviewed code into `main` and pin the exact commit SHA to execute
+3. Manually prepare the required APIs and the Terraform state and Cloud Build log buckets
+4. Manually complete the Cloud Build GitHub connection and repository link
+5. Import the APIs, Cloud Storage buckets, and Cloud Build repository into Terraform state in that order
+6. Review the plan for each root before applying it
+7. Verify the pull-request plan trigger and the `main` branch apply trigger
 
-具体的な確認項目と証跡は[bootstrap/README.md](bootstrap/README.md)に記録します。
+Record the detailed checks and evidence in the
+[initial bootstrap runbook](bootstrap/README.md).
 
-## 実行場所と実行主体
+## Execution Locations and Identities
 
-以下を混同しないよう、実行記録には場所とidentityを明記します。
+Record both the execution location and identity so that the following phases
+are not confused.
 
-| フェーズ | 実行場所 | 実行主体 |
+| Phase | Execution location | Execution identity |
 | --- | --- | --- |
-| 初回Bootstrap | 開発者PC（予定） | 個人のGoogleアカウント |
-| Bootstrap後のplan/apply | Cloud Build | Terraform実行用サービスアカウント |
+| Initial bootstrap | Developer workstation (planned) | Personal Google account |
+| Post-bootstrap plan and apply | Cloud Build | Terraform service account |
 
-Cloud BuildにリンクされたGitHub repositoryはソース参照です。リンクしただけでは
-ローカルPCやCloud Shellへリポジトリのファイルは配置されません。
+A GitHub repository linked to Cloud Build is a source reference. Linking the
+repository does not place its files on a developer workstation or in Cloud
+Shell.
 
-## Git管理方針
+## Version Control Policy
 
-- `.terraform.lock.hcl`はroot moduleごとに生成し、Gitへコミットする
-- `terraform.tfstate`、`.terraform/`、保存したplanはコミットしない
-- 実値の`terraform.tfvars`と`backend.hcl`はコミットしない
-- 共有用には`terraform.tfvars.example`と`backend.hcl.example`を使用する
-- サービスアカウントキーやその他の認証情報は作成・保存・コミットしない
+- Generate and commit `.terraform.lock.hcl` for each root module
+- Do not commit `terraform.tfstate`, `.terraform/`, or saved plan files
+- Do not commit populated `terraform.tfvars` or `backend.hcl` files
+- Use `terraform.tfvars.example` and `backend.hcl.example` as shareable templates
+- Do not create, store, or commit service account keys or other credentials
 
-## 現在の状態
+## Current Status
 
-- [x] GitHubリポジトリを作成
-- [x] Bootstrap方針と予定構成を文書化
-- [ ] Terraform rootとmoduleを作成
-- [ ] Cloud Build設定を作成
-- [ ] 個人GCPプロジェクトの現状を読み取り確認
-- [ ] Bootstrapを実行
-- [ ] PR planと`main` applyを検証
+- [x] Create the GitHub repository
+- [x] Document the bootstrap approach and planned structure
+- [ ] Create the Terraform roots and modules
+- [ ] Create the Cloud Build configuration
+- [ ] Inspect the current personal GCP project state using read-only commands
+- [ ] Run the bootstrap procedure
+- [ ] Verify pull-request plan and `main` branch apply executions
 

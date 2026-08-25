@@ -17,4 +17,3 @@ variable "services" {
     error_message = "services must contain at least one valid googleapis.com service name."
   }
 }
-

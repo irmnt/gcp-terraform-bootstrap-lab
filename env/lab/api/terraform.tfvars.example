@@ -9,4 +9,3 @@ services = [
   "serviceusage.googleapis.com",
   "storage.googleapis.com",
 ]
-

@@ -8,4 +8,3 @@ module "cloudstorage" {
   cloud_build_logs_bucket_name   = var.cloud_build_logs_bucket_name
   cloud_build_log_lifecycle_days = var.cloud_build_log_lifecycle_days
 }
-

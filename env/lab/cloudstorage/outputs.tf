@@ -17,4 +17,3 @@ output "cloud_build_logs_bucket_url" {
   description = "GCS URL of the Cloud Build logs bucket."
   value       = module.cloudstorage.cloud_build_logs_bucket_url
 }
-

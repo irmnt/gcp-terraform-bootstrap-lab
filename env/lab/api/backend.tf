@@ -3,4 +3,3 @@ terraform {
     prefix = "terraform/lab/api"
   }
 }
-

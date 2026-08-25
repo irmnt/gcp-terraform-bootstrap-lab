@@ -26,4 +26,3 @@ variable "services" {
     "storage.googleapis.com",
   ]
 }
-

@@ -34,4 +34,3 @@ variable "cloud_build_log_lifecycle_days" {
   type        = number
   default     = 30
 }
-

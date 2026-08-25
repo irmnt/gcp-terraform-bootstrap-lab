@@ -72,4 +72,3 @@ options:
   logging: GCS_ONLY
 
 timeout: 1800s
-

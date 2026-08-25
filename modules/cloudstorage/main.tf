@@ -54,4 +54,3 @@ resource "google_storage_bucket" "cloud_build_logs" {
     prevent_destroy = true
   }
 }
-

@@ -69,10 +69,17 @@ linked repository after it is imported.
 Create the Terraform roots and modules, then run the following static checks
 before connecting to remote state:
 
-```text
-terraform fmt -check -diff
-terraform init -backend=false
-terraform validate
+```powershell
+terraform fmt -check -diff -recursive
+
+terraform -chdir=env/lab/api init -backend=false
+terraform -chdir=env/lab/api validate
+
+terraform -chdir=env/lab/cloudstorage init -backend=false
+terraform -chdir=env/lab/cloudstorage validate
+
+terraform -chdir=env/lab/cloudbuild init -backend=false
+terraform -chdir=env/lab/cloudbuild validate
 ```
 
 Do not run imports, plans, or applies against shared state at this stage.
@@ -103,6 +110,16 @@ terraform/lab/cloudstorage
 terraform/lab/cloudbuild
 ```
 
+Copy `backend.hcl.example` to `backend.hcl` in each root and replace the bucket
+placeholder with the manually created Terraform state bucket name. Then
+initialize each root:
+
+```powershell
+terraform -chdir=env/lab/api init -input=false -backend-config=backend.hcl
+terraform -chdir=env/lab/cloudstorage init -input=false -backend-config=backend.hcl
+terraform -chdir=env/lab/cloudbuild init -input=false -backend-config=backend.hcl
+```
+
 After initializing the backend, run `terraform state list` and confirm that the
 target resource is absent before importing it. Do not re-import a resource that
 is already registered in state.
@@ -117,15 +134,59 @@ Preserve the following order:
 4. Import the linked repository into `env/lab/cloudbuild`
 5. Review the Cloud Build root plan and then apply it
 
-Add import IDs and Terraform resource addresses to this runbook after the
-resource definitions are finalized. Do not execute imports using guessed IDs.
+The API resource addresses and import IDs use the following pattern:
 
-### 6. Verify Cloud Build
+```powershell
+terraform -chdir=env/lab/api import 'module.api.google_project_service.service["SERVICE_NAME"]' 'PROJECT_ID/SERVICE_NAME'
+```
+
+Run it once for each service declared in `env/lab/api/terraform.tfvars`:
+
+| Service | Terraform resource address |
+| --- | --- |
+| `cloudbuild.googleapis.com` | `module.api.google_project_service.service["cloudbuild.googleapis.com"]` |
+| `cloudresourcemanager.googleapis.com` | `module.api.google_project_service.service["cloudresourcemanager.googleapis.com"]` |
+| `iam.googleapis.com` | `module.api.google_project_service.service["iam.googleapis.com"]` |
+| `secretmanager.googleapis.com` | `module.api.google_project_service.service["secretmanager.googleapis.com"]` |
+| `serviceusage.googleapis.com` | `module.api.google_project_service.service["serviceusage.googleapis.com"]` |
+| `storage.googleapis.com` | `module.api.google_project_service.service["storage.googleapis.com"]` |
+
+Import the two buckets using their globally unique bucket names:
+
+```powershell
+terraform -chdir=env/lab/cloudstorage import module.cloudstorage.google_storage_bucket.terraform_state TF_STATE_BUCKET_NAME
+terraform -chdir=env/lab/cloudstorage import module.cloudstorage.google_storage_bucket.cloud_build_logs CLOUD_BUILD_LOGS_BUCKET_NAME
+```
+
+Import the linked Cloud Build repository using its full regional resource ID:
+
+```powershell
+terraform -chdir=env/lab/cloudbuild import module.cicd.google_cloudbuildv2_repository.repository 'projects/PROJECT_ID/locations/REGION/connections/CONNECTION_NAME/repositories/REPOSITORY_NAME'
+```
+
+Do not import the plan or apply triggers. They are created by the initial
+Cloud Build root apply. Do not execute any import using guessed values.
+
+### 6. Review IAM Before the Initial Apply
+
+The Cloud Build root creates a dedicated Terraform service account and grants
+the project-level roles listed in the repository README. The initial apply must
+therefore run as the bootstrap operator, who already has permission to create a
+service account and update project IAM.
+
+The Terraform service account deliberately does not receive Project IAM Admin.
+Cloud Build can read its declared IAM resources and manage the lab's APIs,
+buckets, repository, and triggers, but changes to the service account or its
+role bindings remain bootstrap-operator actions.
+
+### 7. Verify Cloud Build
 
 Verify the following behavior for the Terraform-managed triggers:
 
 - A pull request starts `cloudbuild/plan.yaml`
+- The pull-request build starts only after a repository owner or collaborator comments `/gcbrun`
 - A push to `main` starts `cloudbuild/apply.yaml`
+- The apply-triggered build waits for manual approval
 - The build runs as the configured Terraform service account
 - The API, Cloud Storage, and Cloud Build order is preserved
 - The terminal result of each Terraform plan or apply is confirmed

@@ -22,7 +22,7 @@ This lab uses one existing personal GCP project. Creating the GCP project,
 configuring its billing account, and managing organization-level policies are
 outside the scope of Terraform in this repository.
 
-## Planned Repository Structure
+## Repository Structure
 
 ```text
 .
@@ -34,8 +34,17 @@ outside the scope of Terraform in this repository.
 ├── env
 │   └── lab
 │       ├── api
+│       │   ├── backend.tf
+│       │   ├── main.tf
+│       │   ├── outputs.tf
+│       │   ├── providers.tf
+│       │   ├── terraform.tfvars.example
+│       │   ├── variables.tf
+│       │   └── versions.tf
 │       ├── cloudstorage
+│       │   └── ...
 │       └── cloudbuild
+│           └── ...
 ├── modules
 │   ├── api
 │   ├── cloudstorage
@@ -46,7 +55,7 @@ outside the scope of Terraform in this repository.
 
 The directories have the following responsibilities.
 
-| Terraform root | Primary resources | Planned state prefix |
+| Terraform root | Primary resources | State prefix |
 | --- | --- | --- |
 | `env/lab/api` | Google Cloud APIs used by the lab | `terraform/lab/api` |
 | `env/lab/cloudstorage` | Terraform state and Cloud Build log buckets | `terraform/lab/cloudstorage` |
@@ -54,6 +63,42 @@ The directories have the following responsibilities.
 
 Reusable resource definitions belong under `modules`. The directories under
 `env/lab` are the root modules from which Terraform CLI commands are run.
+
+Each root contains its own `backend.tf`, provider constraints, input variables,
+example values, and outputs. Copy the example files locally before execution:
+
+```text
+backend.hcl.example       -> backend.hcl
+terraform.tfvars.example -> terraform.tfvars
+```
+
+The populated files are excluded from Git.
+
+## Implementation Defaults
+
+- Terraform CLI: `~> 1.15.0`; Cloud Build uses `hashicorp/terraform:1.15.8`
+- Google provider: `~> 7.42.0`
+- Cloud Build repository type: regional Cloud Build repositories (2nd gen)
+- Pull-request trigger target: `main`, requiring a repository owner or collaborator to comment `/gcbrun`
+- Push trigger target: `main`, with manual build approval required by default
+- Bucket access: uniform bucket-level access with public access prevention
+- Terraform state bucket: Object Versioning enabled and deletion protected
+- Cloud Build logs: user-owned GCS bucket with a 30-day object lifecycle rule
+
+The Terraform Cloud Build service account receives the following project-level
+roles for this isolated lab:
+
+- `roles/cloudbuild.editor`
+- `roles/iam.securityReviewer`
+- `roles/iam.serviceAccountViewer`
+- `roles/serviceusage.serviceUsageAdmin`
+- `roles/storage.admin`
+
+These roles are intentionally visible in code for review. In particular,
+`roles/storage.admin` and `roles/serviceusage.serviceUsageAdmin` are broad within
+the single lab project. The service account does not receive Project IAM Admin;
+changes to its IAM bindings or to the service account itself remain bootstrap
+operator actions.
 
 ## Bootstrap Approach
 
@@ -96,9 +141,8 @@ Shell.
 
 - [x] Create the GitHub repository
 - [x] Document the bootstrap approach and planned structure
-- [ ] Create the Terraform roots and modules
-- [ ] Create the Cloud Build configuration
+- [x] Create the Terraform roots and modules
+- [x] Create the Cloud Build configuration
 - [ ] Inspect the current personal GCP project state using read-only commands
 - [ ] Run the bootstrap procedure
 - [ ] Verify pull-request plan and `main` branch apply executions
-

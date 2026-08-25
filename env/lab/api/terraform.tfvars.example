@@ -1,0 +1,12 @@
+project_id  = "REPLACE_WITH_PERSONAL_GCP_PROJECT_ID"
+environment = "lab"
+
+services = [
+  "cloudbuild.googleapis.com",
+  "cloudresourcemanager.googleapis.com",
+  "iam.googleapis.com",
+  "secretmanager.googleapis.com",
+  "serviceusage.googleapis.com",
+  "storage.googleapis.com",
+]
+

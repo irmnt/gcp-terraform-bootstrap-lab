@@ -1,0 +1,42 @@
+# Terraform working directories
+**/.terraform/*
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+*.tfstate.lock.info
+
+# Terraform plans and crash logs
+*.tfplan
+crash.log
+crash.*.log
+
+# Local variable values
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+
+# Local backend configuration
+backend.hcl
+backend.*.hcl
+!backend.hcl.example
+!backend.*.hcl.example
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI configuration
+.terraformrc
+terraform.rc
+
+# Local environment and OS files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+

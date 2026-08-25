@@ -1,0 +1,74 @@
+steps:
+  - id: terraform-fmt
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    args:
+      - -c
+      - terraform fmt -check -diff -recursive
+
+  - id: api-plan
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    env:
+      - TF_IN_AUTOMATION=true
+      - TF_INPUT=false
+      - TF_VAR_environment=${_ENVIRONMENT}
+      - TF_VAR_project_id=$PROJECT_ID
+    args:
+      - -c
+      - |
+        set -eu
+        terraform -chdir=env/${_ENVIRONMENT}/api init -input=false -no-color -backend-config="bucket=${_TF_STATE_BUCKET}"
+        terraform -chdir=env/${_ENVIRONMENT}/api validate -no-color
+        terraform -chdir=env/${_ENVIRONMENT}/api plan -input=false -no-color -lock-timeout=60s
+
+  - id: cloudstorage-plan
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    env:
+      - TF_IN_AUTOMATION=true
+      - TF_INPUT=false
+      - TF_VAR_cloud_build_logs_bucket_name=${_BUILD_LOGS_BUCKET}
+      - TF_VAR_environment=${_ENVIRONMENT}
+      - TF_VAR_location=${_REGION}
+      - TF_VAR_project_id=$PROJECT_ID
+      - TF_VAR_terraform_state_bucket_name=${_TF_STATE_BUCKET}
+    args:
+      - -c
+      - |
+        set -eu
+        terraform -chdir=env/${_ENVIRONMENT}/cloudstorage init -input=false -no-color -backend-config="bucket=${_TF_STATE_BUCKET}"
+        terraform -chdir=env/${_ENVIRONMENT}/cloudstorage validate -no-color
+        terraform -chdir=env/${_ENVIRONMENT}/cloudstorage plan -input=false -no-color -lock-timeout=60s
+
+  - id: cloudbuild-plan
+    name: hashicorp/terraform:1.15.8
+    entrypoint: sh
+    env:
+      - TF_IN_AUTOMATION=true
+      - TF_INPUT=false
+      - TF_VAR_apply_requires_approval=true
+      - TF_VAR_cloud_build_logs_bucket_name=${_BUILD_LOGS_BUCKET}
+      - TF_VAR_environment=${_ENVIRONMENT}
+      - TF_VAR_github_connection_name=${_GITHUB_CONNECTION_NAME}
+      - TF_VAR_github_repository_name=${_GITHUB_REPOSITORY_NAME}
+      - TF_VAR_github_repository_uri=${_GITHUB_REPOSITORY_URI}
+      - TF_VAR_project_id=$PROJECT_ID
+      - TF_VAR_region=${_REGION}
+      - TF_VAR_terraform_service_account_id=${_TF_SERVICE_ACCOUNT_ID}
+      - TF_VAR_terraform_state_bucket_name=${_TF_STATE_BUCKET}
+    args:
+      - -c
+      - |
+        set -eu
+        terraform -chdir=env/${_ENVIRONMENT}/cloudbuild init -input=false -no-color -backend-config="bucket=${_TF_STATE_BUCKET}"
+        terraform -chdir=env/${_ENVIRONMENT}/cloudbuild validate -no-color
+        terraform -chdir=env/${_ENVIRONMENT}/cloudbuild plan -input=false -no-color -lock-timeout=60s
+
+logsBucket: gs://${_BUILD_LOGS_BUCKET}
+serviceAccount: projects/$PROJECT_ID/serviceAccounts/${_TF_SERVICE_ACCOUNT_ID}@$PROJECT_ID.iam.gserviceaccount.com
+
+options:
+  logging: GCS_ONLY
+
+timeout: 1800s

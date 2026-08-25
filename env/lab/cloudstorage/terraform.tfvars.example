@@ -1,0 +1,8 @@
+project_id  = "REPLACE_WITH_PERSONAL_GCP_PROJECT_ID"
+environment = "lab"
+location    = "us-central1"
+
+terraform_state_bucket_name  = "REPLACE_WITH_UNIQUE_TF_STATE_BUCKET"
+cloud_build_logs_bucket_name = "REPLACE_WITH_UNIQUE_CLOUD_BUILD_LOGS_BUCKET"
+
+cloud_build_log_lifecycle_days = 30

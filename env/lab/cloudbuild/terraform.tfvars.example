@@ -6,7 +6,7 @@ github_connection_name = "REPLACE_WITH_CLOUD_BUILD_CONNECTION_NAME"
 github_repository_name = "gcp-terraform-bootstrap-lab"
 github_repository_uri  = "https://github.com/irmnt/gcp-terraform-bootstrap-lab.git"
 
-terraform_service_account_id = "terraform-cloud-build"
+terraform_service_account_id = "REPLACE_WITH_EXISTING_TERRAFORM_SERVICE_ACCOUNT_ID"
 
 terraform_state_bucket_name  = "REPLACE_WITH_UNIQUE_TF_STATE_BUCKET"
 cloud_build_logs_bucket_name = "REPLACE_WITH_UNIQUE_CLOUD_BUILD_LOGS_BUCKET"

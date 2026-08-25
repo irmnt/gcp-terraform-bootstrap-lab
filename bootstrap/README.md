@@ -31,15 +31,15 @@ commit them to Git.
 
 | Item | Value | Verification method |
 | --- | --- | --- |
-| GCP project ID | Not set | GCP Console / `gcloud config get-value project` |
+| GCP project ID | Configured locally; not committed | GCP Console / `gcloud config get-value project` |
 | GCP project number | Not set | GCP Console / `gcloud projects describe` |
-| Region | Not set | Terraform and Cloud Build configuration |
+| Region | Configured locally; not committed | Terraform and Cloud Build configuration |
 | GitHub repository | `irmnt/gcp-terraform-bootstrap-lab` | GitHub |
-| Cloud Build connection name | Not set | Cloud Build repositories |
-| Linked repository name | Not set | Cloud Build repositories |
-| Terraform service account | Not set | IAM |
-| Terraform state bucket | Not set | Cloud Storage |
-| Cloud Build log bucket | Not set | Cloud Storage |
+| Cloud Build connection name | Configured locally; not committed | Cloud Build repositories |
+| Linked repository name | Configured locally; not committed | Cloud Build repositories |
+| Terraform service account | Configured locally; not committed | IAM |
+| Terraform state bucket | Configured locally; not committed | Cloud Storage |
+| Cloud Build log bucket | Configured locally; not committed | Cloud Storage |
 | Target commit SHA | Not set | `git rev-parse HEAD` |
 
 ## Management Boundary
@@ -55,7 +55,7 @@ separate from resources ultimately managed by Terraform.
 | Cloud Build log bucket | GCP Console or `gcloud` | Import into `env/lab/cloudstorage` |
 | GitHub host connection | Cloud Build and GitHub authorization screens | Outside Terraform |
 | Linked repository | Cloud Build repositories | Import into `env/lab/cloudbuild` |
-| Build service account and IAM | Apply initially as the developer account | Manage in `env/lab/cloudbuild` |
+| Build service account and IAM | GCP Console or separate IAM repository | Outside Terraform in this repository |
 | Plan and apply triggers | Terraform apply | Manage in `env/lab/cloudbuild` |
 
 The GitHub host connection includes browser-based GitHub App authorization, so
@@ -95,6 +95,12 @@ developer workstation. Immediately before execution, verify the commit with
 Enable the required APIs and create the Terraform state and Cloud Build log
 buckets. Enable Object Versioning and uniform bucket-level access on the
 Terraform state bucket.
+
+Create the Terraform Cloud Build service account and grant its required
+project-level roles manually. Grant `roles/iam.serviceAccountUser` on the
+service account to the service account itself. Confirm that the bootstrap
+operator also has `iam.serviceAccounts.actAs` on that service account. Do not
+create a service account key.
 
 Next, create the Cloud Build GitHub host connection and link this repository.
 Use the same region for the connection, linked repository, and triggers.
@@ -169,15 +175,18 @@ Cloud Build root apply. Do not execute any import using guessed values.
 
 ### 6. Review IAM Before the Initial Apply
 
-The Cloud Build root creates a dedicated Terraform service account and grants
-the project-level roles listed in the repository README. The initial apply must
-therefore run as the bootstrap operator, who already has permission to create a
-service account and update project IAM.
+The Cloud Build root references an existing Terraform service account; it does
+not create the account or manage its IAM bindings. Confirm manually that the
+configured service account exists and has these project-level roles:
 
-The Terraform service account deliberately does not receive Project IAM Admin.
-Cloud Build can read its declared IAM resources and manage the lab's APIs,
-buckets, repository, and triggers, but changes to the service account or its
-role bindings remain bootstrap-operator actions.
+- `roles/cloudbuild.editor`
+- `roles/serviceusage.serviceUsageAdmin`
+- `roles/storage.admin`
+
+Confirm that the service account has `roles/iam.serviceAccountUser` on itself
+and that the bootstrap operator can act as it. The service account deliberately
+does not receive Project IAM Admin. Any service account or IAM changes remain
+outside Terraform in this repository.
 
 ### 7. Verify Cloud Build
 

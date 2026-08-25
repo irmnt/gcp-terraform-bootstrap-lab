@@ -1,6 +1,6 @@
 output "terraform_service_account_email" {
-  description = "Email address of the Terraform Cloud Build service account."
-  value       = google_service_account.terraform.email
+  description = "Email address of the externally managed Terraform Cloud Build service account."
+  value       = local.terraform_service_account_email
 }
 
 output "repository_id" {

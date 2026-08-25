@@ -1,5 +1,7 @@
 locals {
-  connection_id = "projects/${var.project_id}/locations/${var.region}/connections/${var.github_connection_name}"
+  connection_id                    = "projects/${var.project_id}/locations/${var.region}/connections/${var.github_connection_name}"
+  terraform_service_account_email  = "${var.terraform_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
+  terraform_service_account_name   = "projects/${var.project_id}/serviceAccounts/${local.terraform_service_account_email}"
 
   trigger_substitutions = {
     _BUILD_LOGS_BUCKET      = var.cloud_build_logs_bucket_name
@@ -19,32 +21,6 @@ locals {
   ]
 }
 
-resource "google_service_account" "terraform" {
-  project = var.project_id
-
-  account_id   = var.terraform_service_account_id
-  display_name = "Terraform Cloud Build service account"
-  description  = "Runs Terraform plan and apply builds for the personal bootstrap lab."
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "google_project_iam_member" "terraform" {
-  for_each = var.terraform_service_account_roles
-
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.terraform.email}"
-}
-
-resource "google_service_account_iam_member" "terraform_self_act_as" {
-  service_account_id = google_service_account.terraform.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.terraform.email}"
-}
-
 resource "google_cloudbuildv2_repository" "repository" {
   project = var.project_id
 
@@ -62,7 +38,7 @@ resource "google_cloudbuild_trigger" "plan" {
   name               = "${var.environment}-terraform-plan"
   description        = "Plans all Terraform roots for pull requests targeting main."
   filename           = "cloudbuild/plan.yaml"
-  service_account    = google_service_account.terraform.id
+  service_account    = local.terraform_service_account_name
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
   included_files     = local.trigger_included_files
   substitutions      = local.trigger_substitutions
@@ -76,11 +52,6 @@ resource "google_cloudbuild_trigger" "plan" {
       comment_control = "COMMENTS_ENABLED"
     }
   }
-
-  depends_on = [
-    google_project_iam_member.terraform,
-    google_service_account_iam_member.terraform_self_act_as,
-  ]
 }
 
 resource "google_cloudbuild_trigger" "apply" {
@@ -90,7 +61,7 @@ resource "google_cloudbuild_trigger" "apply" {
   name               = "${var.environment}-terraform-apply"
   description        = "Plans and applies all Terraform roots after a push to main."
   filename           = "cloudbuild/apply.yaml"
-  service_account    = google_service_account.terraform.id
+  service_account    = local.terraform_service_account_name
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
   included_files     = local.trigger_included_files
   substitutions      = local.trigger_substitutions
@@ -107,9 +78,4 @@ resource "google_cloudbuild_trigger" "apply" {
   approval_config {
     approval_required = var.apply_requires_approval
   }
-
-  depends_on = [
-    google_project_iam_member.terraform,
-    google_service_account_iam_member.terraform_self_act_as,
-  ]
 }

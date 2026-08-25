@@ -19,8 +19,9 @@ into this repository.
 ## Scope
 
 This lab uses one existing personal GCP project. Creating the GCP project,
-configuring its billing account, and managing organization-level policies are
-outside the scope of Terraform in this repository.
+configuring its billing account, managing the Terraform execution service
+account and IAM, and managing organization-level policies are outside the scope
+of Terraform in this repository.
 
 ## Repository Structure
 
@@ -59,7 +60,7 @@ The directories have the following responsibilities.
 | --- | --- | --- |
 | `env/lab/api` | Google Cloud APIs used by the lab | `terraform/lab/api` |
 | `env/lab/cloudstorage` | Terraform state and Cloud Build log buckets | `terraform/lab/cloudstorage` |
-| `env/lab/cloudbuild` | Terraform service account, IAM, repository, and triggers | `terraform/lab/cloudbuild` |
+| `env/lab/cloudbuild` | Cloud Build repository and triggers using an existing service account | `terraform/lab/cloudbuild` |
 
 Reusable resource definitions belong under `modules`. The directories under
 `env/lab` are the root modules from which Terraform CLI commands are run.
@@ -85,20 +86,24 @@ The populated files are excluded from Git.
 - Terraform state bucket: Object Versioning enabled and deletion protected
 - Cloud Build logs: user-owned GCS bucket with a 30-day object lifecycle rule
 
-The Terraform Cloud Build service account receives the following project-level
-roles for this isolated lab:
+The Terraform Cloud Build service account is created and granted access
+manually, representing an identity that would normally be managed by a
+separate IAM repository. It requires the following project-level roles for this
+isolated lab:
 
 - `roles/cloudbuild.editor`
-- `roles/iam.securityReviewer`
-- `roles/iam.serviceAccountViewer`
 - `roles/serviceusage.serviceUsageAdmin`
 - `roles/storage.admin`
 
-These roles are intentionally visible in code for review. In particular,
+The service account also receives `roles/iam.serviceAccountUser` on itself so
+that it can continue to manage triggers that run as the same identity. The
+bootstrap operator must have `iam.serviceAccounts.actAs` on the service account
+when creating the triggers initially.
+
+These IAM grants are not Terraform resources in this repository. In particular,
 `roles/storage.admin` and `roles/serviceusage.serviceUsageAdmin` are broad within
-the single lab project. The service account does not receive Project IAM Admin;
-changes to its IAM bindings or to the service account itself remain bootstrap
-operator actions.
+the single lab project. Do not grant Project IAM Admin or create a service
+account key for this workflow.
 
 ## Bootstrap Approach
 
@@ -106,7 +111,7 @@ The initial bootstrap follows this order:
 
 1. Create the Terraform configuration and run static checks without connecting to the remote backend
 2. Merge the reviewed code into `main` and pin the exact commit SHA to execute
-3. Manually prepare the required APIs and the Terraform state and Cloud Build log buckets
+3. Manually prepare the required APIs, buckets, Terraform service account, and IAM
 4. Manually complete the Cloud Build GitHub connection and repository link
 5. Import the APIs, Cloud Storage buckets, and Cloud Build repository into Terraform state in that order
 6. Review the plan for each root before applying it
@@ -143,6 +148,7 @@ Shell.
 - [x] Document the bootstrap approach and planned structure
 - [x] Create the Terraform roots and modules
 - [x] Create the Cloud Build configuration
+- [x] Manually create the Terraform service account and two buckets (user-reported; live verification pending)
 - [ ] Inspect the current personal GCP project state using read-only commands
 - [ ] Run the bootstrap procedure
 - [ ] Verify pull-request plan and `main` branch apply executions

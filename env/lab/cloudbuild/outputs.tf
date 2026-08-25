@@ -1,5 +1,5 @@
 output "terraform_service_account_email" {
-  description = "Email address of the Terraform Cloud Build service account."
+  description = "Email address of the externally managed Terraform Cloud Build service account."
   value       = module.cicd.terraform_service_account_email
 }
 
@@ -17,4 +17,3 @@ output "apply_trigger_id" {
   description = "ID of the main-branch apply trigger."
   value       = module.cicd.apply_trigger_id
 }
-

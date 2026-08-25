@@ -40,21 +40,13 @@ variable "github_repository_uri" {
 }
 
 variable "terraform_service_account_id" {
-  description = "Account ID of the service account used by Cloud Build."
+  description = "Account ID of the existing, externally managed service account used by Cloud Build."
   type        = string
-  default     = "terraform-cloud-build"
-}
 
-variable "terraform_service_account_roles" {
-  description = "Project-level roles granted to the Terraform Cloud Build service account."
-  type        = set(string)
-  default = [
-    "roles/cloudbuild.editor",
-    "roles/iam.securityReviewer",
-    "roles/iam.serviceAccountViewer",
-    "roles/serviceusage.serviceUsageAdmin",
-    "roles/storage.admin",
-  ]
+  validation {
+    condition     = length(trimspace(var.terraform_service_account_id)) > 0
+    error_message = "terraform_service_account_id must not be empty."
+  }
 }
 
 variable "terraform_state_bucket_name" {
@@ -72,4 +64,3 @@ variable "apply_requires_approval" {
   type        = bool
   default     = true
 }
-

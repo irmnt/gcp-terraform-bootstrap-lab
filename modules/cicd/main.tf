@@ -1,5 +1,4 @@
 locals {
-  connection_id                   = "projects/${var.project_id}/locations/${var.region}/connections/${var.github_connection_name}"
   terraform_service_account_email = "${var.terraform_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
   terraform_service_account_name  = "projects/${var.project_id}/serviceAccounts/${local.terraform_service_account_email}"
 
@@ -26,7 +25,7 @@ resource "google_cloudbuildv2_repository" "repository" {
 
   location          = var.region
   name              = var.github_repository_name
-  parent_connection = local.connection_id
+  parent_connection = var.github_connection_name
   remote_uri        = var.github_repository_uri
   deletion_policy   = "PREVENT"
 }

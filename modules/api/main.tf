@@ -1,3 +1,4 @@
+# Cloud Build trigger verification.
 resource "google_project_service" "service" {
   for_each = var.services
 
